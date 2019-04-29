@@ -46,6 +46,11 @@ function easy_connect()
   done
 }
 
+function setup_pip()
+{
+  
+}
+
 function setup_ansible()
 {
   echo "----------------检查Ansible是否安装--------------------"
@@ -54,6 +59,7 @@ function setup_ansible()
     echo "Ansible未安装"
     echo "----------------安装 Ansible--------------------"
     sudo yum install -y ansible
+    sudo pip install ansible --upgrade
   else
     echo "Ansible已安装"
   fi
@@ -147,39 +153,39 @@ function copy_files()
 {
   echo "----------------分发证书--------------------"
   # 分发证书
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m command -a 'sudo mkdir -p /etc/kubernetes/pki/etcd' --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/ca.crt dest=/etc/kubernetes/pki/ca.crt" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/ca.key dest=/etc/kubernetes/pki/ca.key" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/sa.key dest=/etc/kubernetes/pki/sa.key" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/sa.pub dest=/etc/kubernetes/pki/sa.pub" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/front-proxy-ca.crt dest=/etc/kubernetes/pki/front-proxy-ca.crt" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/front-proxy-ca.key dest=/etc/kubernetes/pki/front-proxy-ca.key" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/etcd/ca.crt dest=/etc/kubernetes/pki/etcd/ca.crt" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/etcd/ca.key dest=/etc/kubernetes/pki/etcd/ca.key" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/admin.conf dest=/etc/kubernetes/admin.conf" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a 'sudo mkdir -p /etc/kubernetes/pki/etcd' --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/ca.crt dest=/etc/kubernetes/pki/ca.crt" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/ca.key dest=/etc/kubernetes/pki/ca.key" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/sa.key dest=/etc/kubernetes/pki/sa.key" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/sa.pub dest=/etc/kubernetes/pki/sa.pub" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/front-proxy-ca.crt dest=/etc/kubernetes/pki/front-proxy-ca.crt" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/front-proxy-ca.key dest=/etc/kubernetes/pki/front-proxy-ca.key" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/etcd/ca.crt dest=/etc/kubernetes/pki/etcd/ca.crt" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/etcd/ca.key dest=/etc/kubernetes/pki/etcd/ca.key" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/admin.conf dest=/etc/kubernetes/admin.conf" --sudo
 }
 
 function install_masters()
 {
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh' --sudo
-  # sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m command -a 'sed -i \'s/insecure-port=0/insecure-port=8080/g' /etc/kubernetes/manifests/kube-apiserver.yaml' --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh' --sudo
+  # sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a 'sed -i \'s/insecure-port=0/insecure-port=8080/g' /etc/kubernetes/manifests/kube-apiserver.yaml' --sudo
 }
 
 function install_nodes()
 {
-  sudo ansible ${ANSIBLE_K8S_NODES} --private-key=k8s_rsa -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
-  sudo ansible ${ANSIBLE_K8S_NODES} --private-key=k8s_rsa -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh' --sudo
+  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
+  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh' --sudo
 }
 
 function masters_join()
 {
-  sudo ansible ${ANSIBLE_K8S_MASTERS} --private-key=k8s_rsa -u ${KUBE_USER} -m command -a "${KUBEADM_JOIN_CMD} --experimental-control-plane" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "${KUBEADM_JOIN_CMD} --experimental-control-plane" --sudo
 }
 
 function nodes_join()
 {
-  sudo ansible ${ANSIBLE_K8S_NODES} --private-key=k8s_rsa -u ${KUBE_USER} -m command -a "${KUBEADM_JOIN_CMD}" --sudo
+  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m command -a "${KUBEADM_JOIN_CMD}" --sudo
 }
 
 function create_token()
