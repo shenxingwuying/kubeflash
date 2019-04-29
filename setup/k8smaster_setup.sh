@@ -8,11 +8,11 @@ function help_info ()
                                    -n \"10.120.200.4,10.120.200.5,10.120.200.6\" \
                                    -u root -p 123456 -v 1.13.1 -a yes
     参数说明:
-        -a:admin        生成管理员账户
+        -a:admin        生成管理员账户，可选值：yes,no，默认为no
         -m:masters      master IP列表，用逗号分隔
         -n:nodes        node IP列表，用逗号分隔 
         -u:user         用户名，默认为当前登录用户
-        -p:password     用户密码
+        -p:password     用户密码，如果不设置密码，则默认使用ssh建立机器互信
         -v:version      kubernetes版本，默认为1.13.1
         -h:help         帮助命令
     "
@@ -46,9 +46,32 @@ function easy_connect()
   done
 }
 
+# 安装 Pip
 function setup_pip()
 {
-  
+  echo "----------------检查 Pip 是否安装--------------------"
+  sudo yum list installed | grep 'python2-pip'
+  if [  $? -ne 0 ];then
+    echo "Pip未安装"
+    echo "----------------安装 Pip--------------------"
+    sudo sudo yum -y install python-pip
+  else
+    echo "Pip 已安装"
+  fi
+}
+
+# 安装 sshpass
+function setup_sshpass()
+{
+  echo "----------------检查 sshpass 是否安装--------------------"
+  sudo yum list installed | grep 'sshpass'
+  if [  $? -ne 0 ];then
+    echo "sshpass 未安装"
+    echo "----------------安装 sshpass--------------------"
+    sudo sudo yum -y install sshpass
+  else
+    echo "sshpass 已安装"
+  fi
 }
 
 function setup_ansible()
@@ -59,7 +82,12 @@ function setup_ansible()
     echo "Ansible未安装"
     echo "----------------安装 Ansible--------------------"
     sudo yum install -y ansible
-    sudo pip install ansible --upgrade
+    setup_sshpass
+    if [ ! -f "/usr/lib/python2.7/site-packages/ansible/plugins/vars/__init__.py" ];then
+    {
+      setup_pip
+      sudo pip install ansible --upgrade
+    }
   else
     echo "Ansible已安装"
   fi
@@ -68,7 +96,11 @@ function setup_ansible()
   echo "[${ANSIBLE_K8S_MASTERS}]" >> k8s_hosts
   for host in ${K8S_MASTER_LIST[@]}; do
     if [ "${host}" != "${IP}" ];then
-      echo ${host} ansible_ssh_user=${KUBE_USER} ansible_ssh_port=22 ansible_ssh_pass=${PASSWD} >> k8s_hosts
+      if [ "${PASSWD}" = "" ];then
+        echo ${host} ansible_ssh_user=${KUBE_USER} ansible_ssh_port=22 ansible_ssh_private_key_file=${RSA_PATH} >> k8s_hosts
+      else
+        echo ${host} ansible_ssh_user=${KUBE_USER} ansible_ssh_port=22 ansible_ssh_pass=${PASSWD} >> k8s_hosts
+      fi
     fi
   done
 
@@ -76,7 +108,11 @@ function setup_ansible()
 
   echo "[${ANSIBLE_K8S_NODES}]" >> k8s_hosts
   for host in ${K8S_NODE_LIST[@]}; do
-    echo ${host} ansible_ssh_user=${KUBE_USER} ansible_ssh_port=22 ansible_ssh_pass=${PASSWD} >> k8s_hosts
+    if [ "${PASSWD}" = "" ];then
+        echo ${host} ansible_ssh_user=${KUBE_USER} ansible_ssh_port=22 ansible_ssh_private_key_file=${RSA_PATH} >> k8s_hosts
+      else
+        echo ${host} ansible_ssh_user=${KUBE_USER} ansible_ssh_port=22 ansible_ssh_pass=${PASSWD} >> k8s_hosts
+      fi
   done
 
   echo "/etc/ansible/hosts 内容如下："
@@ -297,9 +333,6 @@ ANSIBLE_K8S_MASTERS=k8s_masters
 ANSIBLE_K8S_NODES=k8s_nodes
 RSA_PATH="/home/${KUBE_USER}/.ssh/k8s_rsa"
 
-if [ "${PASSWD}" = "" ];then
-  read -s -p "请输入用户密码: " PASSWD
-fi
 
 if [ "${KUBE_VERSION}" = "" ];then
   KUBE_VERSION=1.13.1
@@ -332,8 +365,11 @@ if [  $? -ne 0 ];then
 fi
 
 # 配置ssh免密登录
-# easy_connect
-check_cmd_result
+if [ "${PASSWD}" = "" ];then
+  easy_connect
+  check_cmd_result
+fi
+
 setup_ansible
 check_cmd_result
 
