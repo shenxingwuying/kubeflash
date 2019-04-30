@@ -331,11 +331,7 @@ ANSIBLE_K8S_NODES=k8s_nodes
 RSA_PATH="/home/${KUBE_USER}/.ssh/k8s_rsa"
 
 # docker 镜像地址
-DOCKER_IMAGE_PATH=docker2.yidian.com:5000/k8simages
-if [ "${DOCKER_IMAGE_PATH}" = "" ];then
-  DOCKER_IMAGE_PATH=registry.cn-beijing.aliyuncs.com/imcto
-fi
-
+DOCKER_IMAGE_PATH=registry.cn-beijing.aliyuncs.com/imcto
 DOCKER_REGISTRY=`echo ${DOCKER_IMAGE_PATH%/*}`
 
 
@@ -366,6 +362,19 @@ for host in ${K8S_NODE_LIST[@]}; do
     echo ${host}
 done
 echo "=============================================================="
+
+read -n1 -p "如果您已部署kubernetes环境，继续安装将会覆盖已有环境，是否继续 [y/n]?" answer
+case $answer in
+  Y | y)
+    echo "fine ,continue";;
+  N | n)
+    echo "终止安装，bye-bye";;
+    exit 0
+  *)
+    echo "终止安装，bye-bye";;
+    exit 0
+esac
+
 
 sudo yum list installed | grep 'expect'
 if [  $? -ne 0 ];then
