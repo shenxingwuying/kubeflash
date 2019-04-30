@@ -28,10 +28,10 @@ function reset_env()
 {
   # 重置kubeadm
   echo "----------------重置系统环境--------------------"
-  sudo kubeadm reset
+  echo -e "y\n" | sudo kubeadm reset
 
   # 重置iptables
-  iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+  sudo iptables -F && sudo iptables -t nat -F && sudo iptables -t mangle -F && sudo iptables -X
   sudo sysctl net.bridge.bridge-nf-call-iptables=1
 
   # 重置网卡信息
@@ -71,12 +71,32 @@ function setup_docker()
     sudo yum install -y docker-ce
     # 重启docker
     sudo systemctl enable docker
-    sudo systemctl restart docker
     sleep 10
   else
     echo "Docker已安装"
   fi
+
+  update_docker_daemon_json
 }
+
+
+
+function update_docker_daemon_json()
+{
+    sudo sed -i "s/PRIVATE_REGISTRY/${DOCKER_REGISTRY}/g" daemon.json
+    sudo mv /etc/docker/daemon.json /etc/docker/daemon.json.bak
+    sudo mv daemon.json /etc/docker/daemon.json
+    sudo systemctl restart docker
+    sleep 10
+}
+
+function reset_docker_daemon_json()
+{
+    sudo mv /etc/docker/daemon.json.bak /etc/docker/daemon.json
+    sudo systemctl restart docker
+    sleep 10
+}
+
 
 function change_yum_src()
 {
@@ -136,9 +156,12 @@ function init_kubelet()
 }
 
 
-while getopts ":vh" opt
+while getopts ":v:rh" opt
 do
     case $opt in
+        r)
+            DOCKER_REGISTRY=($OPTARG)
+            ;;
         v)
             KUBE_VERSION=($OPTARG)
             ;;
@@ -158,7 +181,15 @@ done
 if [ "${KUBE_VERSION}" = "" ];then
   KUBE_VERSION=1.13.1
 fi
-echo "Kubernetes版本：${KUBE_VERSION}"
+
+if [ "${DOCKER_REGISTRY}" = "" ];then
+  DOCKER_REGISTRY=registry.cn-beijing.aliyuncs.com
+fi
+
+echo "========================================================="
+echo "Kubernetes版本： ${KUBE_VERSION}"
+echo "Docker注册处：   ${DOCKER_REGISTRY}"
+echo "========================================================="
 
 reset_env
 check_cmd_result
@@ -170,3 +201,5 @@ reset_kubenetes
 check_cmd_result
 init_kubelet
 check_cmd_result
+# 重置 docker daemon.json
+reset_docker_daemon_json

@@ -6,12 +6,11 @@ function help_info ()
     echo "
     命令示例：sh k8smaster_setup.sh -m \"10.120.200.1,10.120.200.2,10.120.200.3\" \
                                    -n \"10.120.200.4,10.120.200.5,10.120.200.6\" \
-                                   -u root -p 123456 -v 1.13.1 -a yes
+                                   -p 123456 -v 1.13.1 -a yes
     参数说明:
         -a:admin        生成管理员账户，可选值：yes,no，默认为no
         -m:masters      master IP列表，用逗号分隔
         -n:nodes        node IP列表，用逗号分隔 
-        -u:user         用户名，默认为当前登录用户
         -p:password     用户密码，如果不设置密码，则默认使用ssh建立机器互信
         -v:version      kubernetes版本，默认为1.13.1
         -h:help         帮助命令
@@ -84,10 +83,9 @@ function setup_ansible()
     sudo yum install -y ansible
     setup_sshpass
     if [ ! -f "/usr/lib/python2.7/site-packages/ansible/plugins/vars/__init__.py" ];then
-    {
       setup_pip
       sudo pip install ansible --upgrade
-    }
+    fi
   else
     echo "Ansible已安装"
   fi
@@ -160,7 +158,7 @@ function init_kubeadm()
 
   # 修改配置文件
   # 修改镜像仓储地址
-  sed -i 's#imageRepository: .*#imageRepository: docker2.yidian.com:5000/k8simages#g' kubeadm.conf
+  sed -i "s#imageRepository: .*#imageRepository: ${DOCKER_IMAGE_PATH}#g" kubeadm.conf
   # 修改版本号
   # echo "controlPlaneEndpoint: ${IP}:8443" >> kubeadm.conf
   sed -i "s/controlPlaneEndpoint: .*/controlPlaneEndpoint: ${IP}:6443/g" kubeadm.conf
@@ -179,7 +177,7 @@ function init_kubeadm()
 
   echo "----------------重启 API Server--------------------"
   # 修改配置文件
-  sudo sed -i 's/insecure-port=0/insecure-port=8080/g' /etc/kubernetes/manifests/kube-apiserver.yaml
+  sudo sed -i "s/insecure-port=0/insecure-port=8080/g" /etc/kubernetes/manifests/kube-apiserver.yaml
   # 重启docker镜像
   sleep 10
   # sudo docker ps |grep 'kube-apiserver_kube-apiserver'|awk '{print $1}'|head -1|xargs sudo docker restart
@@ -205,7 +203,7 @@ function install_masters()
 {
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh' --sudo
-  # sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a 'sed -i \'s/insecure-port=0/insecure-port=8080/g' /etc/kubernetes/manifests/kube-apiserver.yaml' --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "sed -i 's#insecure-port=0#insecure-port=8080#g' /etc/kubernetes/manifests/kube-apiserver.yaml" --sudo
 }
 
 function install_nodes()
@@ -244,7 +242,7 @@ function install_kube_dashboard()
 {
   echo "----------------安装 kubernetes-dashboard --------------------"
   # 创建Dashboard UI
-  sed -i "s#k8s.gcr.io#docker2.yidian.com:5000/k8simages#g" kubernetes-dashboard.yaml
+  sed -i "s#k8s.gcr.io#${DOCKER_IMAGE_PATH}#g" kubernetes-dashboard.yaml
   sudo kubectl create -f kubernetes-dashboard.yaml
   sudo kubectl -n kube-system get service kubernetes-dashboard
 }
@@ -262,12 +260,12 @@ function create_dashboard_admin()
 function install_calico()
 {
   echo "----------------安装 Calico 网络插件--------------------"
-  sudo docker pull docker2.yidian.com:5000/k8simages/ctl:v1.10.0
-  sudo docker pull docker2.yidian.com:5000/k8simages/kube-policy-controller:v0.7.0
-  sudo docker pull docker2.yidian.com:5000/k8simages/node:v2.5.1
+  sudo docker pull ${DOCKER_IMAGE_PATH}/ctl:v1.10.0
+  sudo docker pull ${DOCKER_IMAGE_PATH}/kube-policy-controller:v0.7.0
+  sudo docker pull ${DOCKER_IMAGE_PATH}/node:v2.5.1
   sudo kubectl apply -f rbac.yaml
   sed -i "s/etcd_endpoints: .*/etcd_endpoints: ${IP}:2379/g" calico.yaml
-  sed -i "s#quay.io/calico#docker2.yidian.com:5000/k8simages#g" calico.yaml
+  sed -i "s#quay.io/calico#${DOCKER_IMAGE_PATH}#g" calico.yaml
   sudo kubectl apply -f calico.yaml
 }
 
@@ -276,7 +274,7 @@ function install_flannel()
   echo "----------------安装 Flannel 网络插件 --------------------"
   sudo kubectl apply -f rbac.yaml
   sudo sysctl net.bridge.bridge-nf-call-iptables=1
-  sed -i "s#quay.io/coreos#docker2.yidian.com:5000/k8simages#g" kube-flannel.yml
+  sed -i "s#quay.io/coreos#${DOCKER_IMAGE_PATH}#g" kube-flannel.yml
   sudo kubectl apply -f kube-flannel.yml
 }
 
@@ -300,9 +298,6 @@ do
             ;;
         p)
             PASSWD=($OPTARG)
-            ;;
-        u)
-            KUBE_USER=($OPTARG)
             ;;
         v)
             KUBE_VERSION=($OPTARG)
@@ -333,6 +328,15 @@ ANSIBLE_K8S_MASTERS=k8s_masters
 ANSIBLE_K8S_NODES=k8s_nodes
 RSA_PATH="/home/${KUBE_USER}/.ssh/k8s_rsa"
 
+# docker 镜像地址
+DOCKER_IMAGE_PATH=docker2.yidian.com:5000/k8simages
+if [ "${DOCKER_IMAGE_PATH}" = "" ];then
+  DOCKER_IMAGE_PATH=registry.cn-beijing.aliyuncs.com/imcto
+fi
+
+DOCKER_REGISTRY=`echo ${DOCKER_IMAGE_PATH%/*}`
+
+
 
 if [ "${KUBE_VERSION}" = "" ];then
   KUBE_VERSION=1.13.1
@@ -345,6 +349,8 @@ echo "本机IP：        ${IP}"
 echo "用户：          ${KUBE_USER}"
 echo "密码：          ${PASSWD}"
 echo "rsa文件目录：    ${RSA_PATH}"
+echo "Docker注册处：  ${DOCKER_REGISTRY}"
+echo ""
 echo "Master 节点列表："
 for host in ${K8S_MASTER_LIST[@]}; do
     echo ${host}
@@ -352,7 +358,7 @@ for host in ${K8S_MASTER_LIST[@]}; do
       INIT_KUBEADM=true
     fi
 done
-
+echo ""
 echo "Node 节点列表："
 for host in ${K8S_NODE_LIST[@]}; do
     echo ${host}
@@ -376,7 +382,7 @@ check_cmd_result
 # 如果 master 列表中包含本机IP，则初始化本机 kubernetes 环境
 if [ "${INIT_KUBEADM}" = "true" ];then
   # 安装本机
-  sh k8sworker_setup.sh -v ${KUBE_VERSION}
+  sh k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY}
 
   init_kubeadm
   check_cmd_result
@@ -386,10 +392,6 @@ if [ "${INIT_KUBEADM}" = "true" ];then
 else
   create_token
 fi
-
-# if [ "${NEED_KUBE_DASHBOARD}" = "true" ];then
-#   install_kube_dashboard
-# if
 
 # 如果不包含，则获取 token，拼接 kubeadm join 命令
 echo ${KUBEADM_JOIN_CMD}
