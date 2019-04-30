@@ -160,6 +160,18 @@ function init_kubelet()
 
 }
 
+# 启用IPV6 
+function enable_ipv6()
+{
+  IPV6_ENABLE=`grep 'ipv6.disable=0' /etc/default/grub`
+  if [  ${IPV6_ENABLE} = "" ];then
+    echo "----------------启用 IPV6--------------------"
+    sudo sed -i 's\ipv6.disable=1\ipv6.disable=0\g' /etc/default/grub
+    sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+    echo "----------------启用 IPV6 后需要重启当前机器，请稍后自行重启--------------------"
+  fi
+}
+
 
 while getopts ":v:rh" opt
 do
@@ -198,6 +210,7 @@ echo "========================================================="
 
 reset_env
 check_cmd_result
+enable_ipv6
 setup_docker
 check_cmd_result
 change_yum_src
