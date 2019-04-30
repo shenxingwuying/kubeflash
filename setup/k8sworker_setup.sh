@@ -210,6 +210,8 @@ echo "Kubernetes版本： ${KUBE_VERSION}"
 echo "Docker注册处：   ${DOCKER_REGISTRY}"
 echo "========================================================="
 
+export https_proxy=http://10.103.8.3:18080/
+
 reset_env
 check_cmd_result
 enable_ipv6

@@ -331,7 +331,7 @@ ANSIBLE_K8S_NODES=k8s_nodes
 RSA_PATH="/home/${KUBE_USER}/.ssh/k8s_rsa"
 
 # docker 镜像地址
-DOCKER_IMAGE_PATH=registry.cn-beijing.aliyuncs.com/imcto
+DOCKER_IMAGE_PATH=docker2.yidian.com:5000/k8simages
 DOCKER_REGISTRY=`echo ${DOCKER_IMAGE_PATH%/*}`
 
 
@@ -364,9 +364,10 @@ done
 echo "=============================================================="
 
 read -n1 -p "如果您已部署Kubernetes环境，继续安装将会覆盖已有环境，是否继续 [y/n]?" answer
+echo ""
 case $answer in
   Y | y)
-    echo "fine ,continue"
+    echo "继续安装······"
     ;;
   N | n)
     echo "终止安装，bye-bye"
@@ -378,6 +379,7 @@ case $answer in
     ;;
 esac
 
+export https_proxy=http://10.103.8.3:18080/
 
 sudo yum list installed | grep 'expect'
 if [  $? -ne 0 ];then
