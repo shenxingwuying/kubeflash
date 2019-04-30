@@ -204,7 +204,6 @@ function install_masters()
   sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.cfg dest=~/docker-daemon.json" --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh' --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "sed -i 's#insecure-port=0#insecure-port=8080#g' /etc/kubernetes/manifests/kube-apiserver.yaml" --sudo
 }
 
 function install_nodes()
@@ -217,6 +216,7 @@ function install_nodes()
 function masters_join()
 {
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "${KUBEADM_JOIN_CMD} --experimental-control-plane" --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "sed -i 's#insecure-port=0#insecure-port=8080#g' /etc/kubernetes/manifests/kube-apiserver.yaml" --sudo
 }
 
 function nodes_join()
