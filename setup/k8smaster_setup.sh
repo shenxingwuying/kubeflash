@@ -363,16 +363,19 @@ for host in ${K8S_NODE_LIST[@]}; do
 done
 echo "=============================================================="
 
-read -n1 -p "如果您已部署kubernetes环境，继续安装将会覆盖已有环境，是否继续 [y/n]?" answer
+read -n1 -p "如果您已部署Kubernetes环境，继续安装将会覆盖已有环境，是否继续 [y/n]?" answer
 case $answer in
   Y | y)
-    echo "fine ,continue";;
+    echo "fine ,continue"
+    ;;
   N | n)
-    echo "终止安装，bye-bye";;
+    echo "终止安装，bye-bye"
     exit 0
+    ;;
   *)
-    echo "终止安装，bye-bye";;
+    echo "终止安装，bye-bye"
     exit 0
+    ;;
 esac
 
 
