@@ -174,10 +174,20 @@ function enable_ipv6()
   fi
 }
 
+function config_master()
+{
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+}
 
-while getopts ":v:rh" opt
+
+while getopts ":v:rhm" opt
 do
     case $opt in
+        m)
+            IM_MASTER=yes
+            ;;
         r)
             DOCKER_REGISTRY=($OPTARG)
             ;;
@@ -223,5 +233,10 @@ reset_kubenetes
 check_cmd_result
 init_kubelet
 check_cmd_result
+
+# 配置master
+if [ "${IM_MASTER}" = "yes" ]
+  config_master
+fi
 # 重置 docker daemon.json
 reset_docker_daemon_json

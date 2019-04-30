@@ -203,7 +203,7 @@ function install_masters()
 {
   sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.json dest=~/docker-daemon.json" --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh' --sudo
+  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "sh ~/k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY} -m" --sudo
 }
 
 function install_nodes()
@@ -398,7 +398,7 @@ check_cmd_result
 # 如果 master 列表中包含本机IP，则初始化本机 kubernetes 环境
 if [ "${INIT_KUBEADM}" = "true" ];then
   # 安装本机
-  sh k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY}
+  sh k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY} -m
 
   init_kubeadm
   check_cmd_result
