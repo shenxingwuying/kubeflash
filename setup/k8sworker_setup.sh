@@ -164,7 +164,7 @@ function init_kubelet()
 function enable_ipv6()
 {
   IPV6_ENABLE=`grep 'ipv6.disable=0' /etc/default/grub`
-  if [  ${IPV6_ENABLE} = "" ];then
+  if [ "${IPV6_ENABLE}" = "" ];then
     echo "----------------启用 IPV6--------------------"
     sudo sed -i 's\ipv6.disable=1\ipv6.disable=0\g' /etc/default/grub
     sudo grub2-mkconfig -o /boot/grub2/grub.cfg
