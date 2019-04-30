@@ -396,11 +396,10 @@ fi
 # 如果不包含，则获取 token，拼接 kubeadm join 命令
 echo ${KUBEADM_JOIN_CMD}
 
-
-copy_files
-check_cmd_result
 # 部署 master 节点
 install_masters
+check_cmd_result
+copy_files
 check_cmd_result
 masters_join
 
