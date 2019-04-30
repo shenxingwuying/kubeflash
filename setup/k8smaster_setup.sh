@@ -201,7 +201,7 @@ function copy_files()
 
 function install_masters()
 {
-  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.cfg dest=~/docker-daemon.json" --sudo
+  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.json dest=~/docker-daemon.json" --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh' --sudo
 }
@@ -209,7 +209,7 @@ function install_masters()
 function install_nodes()
 {
   sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
-  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.cfg dest=~/docker-daemon.json" --sudo
+  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.json dest=~/docker-daemon.json" --sudo
   sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh' --sudo
 }
 
