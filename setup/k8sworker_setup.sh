@@ -84,13 +84,15 @@ function setup_docker()
 
 function update_docker_daemon_json()
 {
-  sudo sed -i "s/PRIVATE_REGISTRY/${DOCKER_REGISTRY}/g" docker-daemon.json
-  if [ -f "/etc/docker/daemon.json" ];then
-    sudo mv /etc/docker/daemon.json /etc/docker/daemon.json.bak
+  if [ -f "daemon.json" ];then
+    sudo sed -i "s/PRIVATE_REGISTRY/${DOCKER_REGISTRY}/g" docker-daemon.json
+    if [ -f "/etc/docker/daemon.json" ];then
+      sudo mv /etc/docker/daemon.json /etc/docker/daemon.json.bak
+    fi
+    sudo mv docker-daemon.json /etc/docker/daemon.json
+    sudo systemctl restart docker
+    sleep 10
   fi
-  sudo mv docker-daemon.json /etc/docker/daemon.json
-  sudo systemctl restart docker
-  sleep 10
 }
 
 function reset_docker_daemon_json()
