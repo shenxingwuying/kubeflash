@@ -52,6 +52,7 @@ function reset_env()
   # 编辑`/etc/fstab`文件，注释掉引用`swap`的行，保存并重启后输入:
   sudo swapoff -a #临时关闭swap
   sudo sed -i 's/.*swap.*/#&/' /etc/fstab 
+  sudo yum-complete-transaction --cleanup-only
 }
 
 
