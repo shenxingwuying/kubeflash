@@ -51,7 +51,7 @@ function reset_env()
   # 关闭系统的Swap方法如下:
   # 编辑`/etc/fstab`文件，注释掉引用`swap`的行，保存并重启后输入:
   sudo swapoff -a #临时关闭swap
-  sudo sed -i 's/.*swap.*/#&/' /etc/fstab 
+  sudo sed -i 's/.*swap.*/#&/' /etc/fstab
   sudo yum-complete-transaction --cleanup-only
 }
 
@@ -162,7 +162,7 @@ function init_kubelet()
 
 }
 
-# 启用IPV6 
+# 启用IPV6
 function enable_ipv6()
 {
   IPV6_ENABLE=`grep 'ipv6.disable=0' /etc/default/grub`
@@ -235,7 +235,7 @@ init_kubelet
 check_cmd_result
 
 # 配置master
-if [ "${IM_MASTER}" = "yes" ]
+if [ "${IM_MASTER}" = "yes" ]; then
   config_master
 fi
 # 重置 docker daemon.json

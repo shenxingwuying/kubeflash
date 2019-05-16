@@ -1,5 +1,8 @@
 #!/bin/bash
 
+root=`dirname $0`
+root=`cd $root; pwd`
+
 # 帮助信息
 function help_info ()
 {
@@ -10,7 +13,7 @@ function help_info ()
     参数说明:
         -a:admin        生成管理员账户，可选值：yes,no，默认为no
         -m:masters      master IP列表，用逗号分隔
-        -n:nodes        node IP列表，用逗号分隔 
+        -n:nodes        node IP列表，用逗号分隔
         -p:password     用户密码，如果不设置密码，则默认使用ssh建立机器互信
         -v:version      kubernetes版本，默认为1.13.1
         -h:help         帮助命令
@@ -154,7 +157,7 @@ function init_kubeadm()
 {
   echo "----------------配置 kubeadm--------------------"
   # 生成配置文件
-  kubeadm config print init-defaults ClusterConfiguration > kubeadm.conf 
+  kubeadm config print init-defaults ClusterConfiguration > kubeadm.conf
 
   # 修改配置文件
   # 修改镜像仓储地址
@@ -183,10 +186,11 @@ function init_kubeadm()
   # sudo docker ps |grep 'kube-apiserver_kube-apiserver'|awk '{print $1}'|head -1|xargs sudo docker restart
 }
 
-function copy_files()
-{
+function copy_files() {
   echo "----------------分发证书--------------------"
   # 分发证书
+
+:<<duyuqi
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a 'sudo mkdir -p /etc/kubernetes/pki/etcd' --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/ca.crt dest=/etc/kubernetes/pki/ca.crt" --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/ca.key dest=/etc/kubernetes/pki/ca.key" --sudo
@@ -197,35 +201,81 @@ function copy_files()
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/etcd/ca.crt dest=/etc/kubernetes/pki/etcd/ca.crt" --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/pki/etcd/ca.key dest=/etc/kubernetes/pki/etcd/ca.key" --sudo
   sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=/etc/kubernetes/admin.conf dest=/etc/kubernetes/admin.conf" --sudo
+duyuqi
+
+  local tmp=/home/`whoami`/tmp.kubenetes/pki
+  local m2=$(cat $root/conf/master_list.2 | wc -l)
+  if [ $m2 -eq 0 ]; then
+    pssh -t 300 -h $root/conf/master_list.2 -p 10 "sudo mkdir -p /etc/kubernetes/pki/etcd && rm -rf $tmp && mkdir -p $tmp/etcd"
+  fi
+  private_files="/etc/kubernetes/pki/ca.key /etc/kubernetes/pki/sa.key /etc/kubernetes/pki/front-proxy-ca.key /etc/kubernetes/pki/etcd/ca.key /etc/kubernetes/pki/sa.pub /etc/kubernetes/admin.conf"
+  sudo chmod o+r $private_files
+  for i in /etc/kubernetes/pki/ca.crt /etc/kubernetes/pki/ca.key /etc/kubernetes/pki/sa.key /etc/kubernetes/pki/sa.pub \
+      /etc/kubernetes/pki/front-proxy-ca.crt /etc/kubernetes/pki/front-proxy-ca.key; do
+    pscp -t 300 -h $root/conf/master_list.2 -p 10 $i $tmp
+  done
+  if [ $m2 -eq 0 ]; then
+    for i in /etc/kubernetes/pki/etcd/ca.crt /etc/kubernetes/pki/etcd/ca.key; do
+        pscp -h $root/conf/master_list.2 -p 10 $i $tmp/etcd
+      done
+      pscp -t 300 -h $root/conf/master_list.2 -p 10 /etc/kubernetes/admin.conf $tmp/admin.conf
+      pssh -t 300 -h $root/conf/master_list.2 -p 10 "sudo cp -r $tmp/* /etc/kubernetes/pki && sudo cp $tmp/admin.conf /etc/kubernetes/admin.conf"
+      pssh -t 300 -h $root/conf/master_list.2 -p 10 "sudo chmod o-r $private_files"
+  fi
+  sudo chmod o-r $private_files
 }
 
-function install_masters()
-{
-  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.json dest=~/docker-daemon.json" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "sh ~/k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY} -m" --sudo
+function install_masters() {
+#  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.json dest=~/docker-daemon.json" --sudo
+#  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
+#  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "sh ~/k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY} -m" --sudo
+
+  local tmp=/home/`whoami`/tmp.kubenetes/
+  local m2=$(cat $root/conf/master_list.2 | wc -l)
+  if [ $m2 -eq 0 ]; then
+      return
+  fi
+  pssh -t 300 -h $root/conf/master_list -p 10 "mkdir -p $tmp"
+  for i in docker-daemon.json k8sworker_setup.sh; do
+    pscp -h $root/conf/master_list.2 -p 10 $i $tmp
+  done
+  pssh -t 300 -h $root/conf/master_list.2 -p 10 "sudo cp $tmp/docker-daemon.json $tmp/k8sworker_setup.sh /root/"
+  pssh -t 300 -h $root/conf/master_list.2 -p 10 "sudo sh /root/k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY} -m"
+#  copy_files
 }
 
-function install_nodes()
-{
-  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
-  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.json dest=~/docker-daemon.json" --sudo
-  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY}' --sudo
+function install_nodes() {
+#  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=k8sworker_setup.sh dest=~/k8sworker_setup.sh" --sudo
+#  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m copy -a "src=docker-daemon.json dest=~/docker-daemon.json" --sudo
+#  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m command -a 'sh ~/k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY}' --sudo
+
+  local tmp=/home/`whoami`/tmp.kubenetes/
+  pssh -t 300 -h $root/conf/node_list -p 10 "mkdir -p $tmp"
+  for i in docker-daemon.json k8sworker_setup.sh; do
+    pscp -h $root/conf/node_list -p 10 $i $tmp
+  done
+  pssh -t 300 -h $root/conf/node_list -p 10 "sudo cp $tmp/docker-daemon.json $tmp/k8sworker_setup.sh /root/"
+  pssh -t 300 -h $root/conf/node_list -p 10 "sudo sh /root/k8sworker_setup.sh -v ${KUBE_VERSION} -r ${DOCKER_REGISTRY}"
 }
 
-function masters_join()
-{
-  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "${KUBEADM_JOIN_CMD} --experimental-control-plane" --sudo
-  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "sed -i 's#insecure-port=0#insecure-port=8080#g' /etc/kubernetes/manifests/kube-apiserver.yaml" --sudo
+function masters_join() {
+#  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "${KUBEADM_JOIN_CMD} --experimental-control-plane" --sudo
+#  sudo ansible ${ANSIBLE_K8S_MASTERS} -u ${KUBE_USER} -m command -a "sed -i 's#insecure-port=0#insecure-port=8080#g' /etc/kubernetes/manifests/kube-apiserver.yaml" --sudo
+
+  local m2=$(cat $root/conf/master_list.2 | wc -l)
+  if [ $m2 -eq 0 ]; then
+      return
+  fi
+  pssh -t 300 -h $root/conf/master_list.2 -p 10 "sudo ${KUBEADM_JOIN_CMD} --experimental-control-plane"
+  pssh -t 300 -h $root/conf/master_list.2 -p 10 "sudo sed -i 's#insecure-port=0#insecure-port=8080#g' /etc/kubernetes/manifests/kube-apiserver.yaml"
 }
 
-function nodes_join()
-{
-  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m command -a "${KUBEADM_JOIN_CMD}" --sudo
+function nodes_join() {
+#  sudo ansible ${ANSIBLE_K8S_NODES} -u ${KUBE_USER} -m command -a "${KUBEADM_JOIN_CMD}" --sudo
+  pssh -t 300 -h $root/conf/node_list -p 10 "sudo ${KUBEADM_JOIN_CMD}"
 }
 
-function create_token()
-{
+function create_token() {
   echo "----------------生成 Token--------------------"
   KUBE_TOKEN=`sudo kubeadm token list | awk '{print $1}' | tail -1`
   TOKEN_TTL=`sudo kubeadm token list | awk '{print $2}' | tail -1`
@@ -281,8 +331,8 @@ function install_flannel()
 }
 
 
-OLD_IFS="$IFS" 
-IFS="," 
+OLD_IFS="$IFS"
+IFS=","
 while getopts "a:d:m:n:p:u:vh" opt
 do
     case $opt in
@@ -328,7 +378,7 @@ fi
 
 ANSIBLE_K8S_MASTERS=k8s_masters
 ANSIBLE_K8S_NODES=k8s_nodes
-RSA_PATH="/home/${KUBE_USER}/.ssh/k8s_rsa"
+RSA_PATH="/home/${KUBE_USER}/.ssh/id_rsa"
 
 # docker 镜像地址
 DOCKER_IMAGE_PATH=docker2.yidian.com:5000/k8simages
@@ -388,8 +438,9 @@ fi
 
 # 配置ssh免密登录
 if [ "${PASSWD}" = "" ];then
-  easy_connect
-  check_cmd_result
+  # easy_connect
+  # check_cmd_result
+  echo ; # pass
 fi
 
 setup_ansible
